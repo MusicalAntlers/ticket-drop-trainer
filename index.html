@@ -26,6 +26,10 @@
             padding: 16px;
             margin: 12px 0;
         }
+
+        .on {
+            outline: 2px solid #8b6cff;
+        }
     </style>
 </head>
 
@@ -34,6 +38,25 @@
     <script>
         const app = document.querySelector('#app');
 
+        const S = {
+            settings: { diff: 'stadium', qty: 2 },  // what you picked on setupl survives between runs
+            run: null                               // the current attempt; rebuilt from scratch each time
+        };
+        const DIFF = {
+            arena: { label: 'Arena', lobby: 8, qMin: 800, qMax: 4000 },
+            stadium: { label: 'Stadium', lobby: 8, qMin: 8000, qMax: 25000 },
+            chaos: { label: 'Chaos', lobby: 8, qMin: 30000, qMax: 90000 }
+        };
+
+        function startRun() {
+            S.run = {
+                d: DIFF[S.settings.diff],             // look up the difficulty object using the chosen setting
+                qty: S.settings.qty,                  // the chosen quantity
+                mistakes: []
+            };
+            renderLobby();
+        }
+
         function renderSetup() {
             //1. Draw the screen by replacing everything inside #app with new HTML.
             //   Backticks (`) allow a multi-line string.
@@ -41,12 +64,23 @@
             <div class="card">
                 <h1>Ticket Drop Trainer</h1>
                 <p>Practice a big onsale until it's muscle memory.</p>
+                <button class="diff ${S.settings.diff === 'arena' ? 'on' : ''}" data-v="arena">Arena</button>
+                <button class="diff ${S.settings.diff === 'stadium' ? 'on' : ''}" data-v="stadium">Stadium</button>
+                <button class="diff ${S.settings.diff === 'chaos' ? 'on' : ''}" data-v="chaos">Chaos</button>
+                <p>Tickets:</p>
+                ${[1, 2, 3, 4].map(n => `<button class="qty ${S.settings.qty === n ? 'on' : ''}" data-v="${n}">${n}</button>`).join('')}
                 <button id="start">Start practice drop</button>
             </div>
             `;
 
             //2. Wire up the button, It only exists now, after the line above ran.
-            document.querySelector('#start').onclick = renderLobby;
+            document.querySelectorAll('.diff').forEach(b => {
+                b.onclick = () => { S.settings.diff = b.dataset.v; renderSetup(); };
+            });
+            document.querySelectorAll('.qty').forEach(b => {                                // 1. '.qty' in place of '.diff'
+                b.onclick = () => { S.settings.qty = +b.dataset.v; renderSetup(); };        // 2. set qty 3. the + makes it a number
+            });
+            document.querySelector('#start').onclick = startRun;
         }
 
         function renderLobby() {
@@ -55,7 +89,7 @@
             app.innerHTML = `
             <div class="card">
                 <h1>Waiting room</h1>
-                <p>Practice a big onsale until it's muscle memory.</p>
+                <p>${S.run.d.label} * ${S.run.qty} tickets</p>
                 <button id="results">Results</button>
             </div>
             `;
@@ -81,6 +115,8 @@
 
         //3. Kick things off when the page loads.
         renderSetup();
+
+
     </script>
 </body>
 
