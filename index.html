@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="'width=device=width,initial-scale=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Ticket Drop Trainer</title>
     <style>
         body {
@@ -15,7 +15,7 @@
 
         #app {
             max-width: 640px;
-            margin: 0, auto;
+            margin: 0 auto;
             padding: 16px;
         }
 
@@ -33,7 +33,54 @@
     <div id="app"></div>
     <script>
         const app = document.querySelector('#app');
-        app.innerHTML = '<div class="card">Hell, drop day</div>';
+
+        function renderSetup() {
+            //1. Draw the screen by replacing everything inside #app with new HTML.
+            //   Backticks (`) allow a multi-line string.
+            app.innerHTML = `
+            <div class="card">
+                <h1>Ticket Drop Trainer</h1>
+                <p>Practice a big onsale until it's muscle memory.</p>
+                <button id="start">Start practice drop</button>
+            </div>
+            `;
+
+            //2. Wire up the button, It only exists now, after the line above ran.
+            document.querySelector('#start').onclick = renderLobby;
+        }
+
+        function renderLobby() {
+            //1. Draw the screen by replacing everything inside #app with new HTML.
+            //   Backticks (`) allow a multi-line string.
+            app.innerHTML = `
+            <div class="card">
+                <h1>Waiting room</h1>
+                <p>Practice a big onsale until it's muscle memory.</p>
+                <button id="results">Results</button>
+            </div>
+            `;
+
+            //2. Wire up the button, It only exists now, after the line above ran.
+            document.querySelector('#results').onclick = renderResults;
+        }
+
+        function renderResults() {
+            //1. Draw the screen by replacing everything inside #app with new HTML.
+            //   Backticks (`) allow a multi-line string.
+            app.innerHTML = `
+            <div class="card">
+                <h1>Results</h1>
+                <p>Practice a big onsale until it's muscle memory.</p>
+                <button id="play-again">Play again</button>
+            </div>
+            `;
+
+            //2. Wire up the button, It only exists now, after the line above ran.
+            document.querySelector('#play-again').onclick = renderSetup;
+        }
+
+        //3. Kick things off when the page loads.
+        renderSetup();
     </script>
 </body>
 
