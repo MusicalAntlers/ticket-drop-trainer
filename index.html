@@ -30,6 +30,26 @@
         .on {
             outline: 2px solid #8b6cff;
         }
+
+        .pos {
+            font-size: 48px;
+            font-weight: 800;
+            margin: 8px 0;
+        }
+
+        .bar {
+            height: 10px;
+            background: #222533;
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .bar i {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: #8b6cff;
+        }
     </style>
 </head>
 
@@ -65,6 +85,34 @@
         function clearTimers() {
             timers.forEach(t => clearInterval(t));  // ____ loop over timers and stop each one (clearInterval works on both kinds)
             timers = [];                            // ____ then reset timers to an empty array
+        }
+
+        function ri(a, b) {
+            return Math.floor(a + Math.random() * (b - a + 1));     // random whole number from a to b
+        }
+
+        function renderQueue() {
+            clearTimers();
+            S.run.qOrig = ri(S.run.d.qMin, S.run.d.qMax);     // starting place in line: use the difficulty's qMin and qMax
+            S.run.pos = S.run.qOrig;
+
+            app.innerHTML = `
+            <div class="card">
+                <h1>In line</h1>
+                <div>People ahead of you</div>
+                <div class="pos" id="pos"></div>
+                <div class="bar"><i id="bar"></i></div>
+            </div>
+            `;
+
+            const step = S.run.qOrig / (20 * 5);    // about 20 seconds at 5 ticks per second
+
+            every(200, () => {
+                S.run.pos -= step * (0.3 + Math.random() * 1.4);    // uneven speed, like a real queue
+                document.querySelector('#pos').textContent = Math.max(0, Math.ceil(S.run.pos)).toLocaleString();  // whole number with commas
+                document.querySelector('#bar').style.width = (1 - S.run.pos / S.run.qOrig) * 100 + '%';  // percent of the line you've gotten through
+                if (S.run.pos <= 0) renderResults();
+            });
         }
 
         function startRun() {
@@ -125,7 +173,7 @@
                 document.querySelector('#cd').textContent = left;   // update just the number, not the whole screen
                 if (left <= 0) {
                     S.run.t0 = performance.now();                   // the moment the "sale" starts
-                    renderResults();                                // becomes renderQueue() in the next step
+                    renderQueue();                                // becomes renderQueue() in the next step
                 }
             });
 
