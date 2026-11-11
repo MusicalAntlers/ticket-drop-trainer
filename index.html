@@ -92,6 +92,76 @@
             font-size: 30px;
             padding: 14px 0;
         }
+
+        .stage {
+            background: #2a2c3a;
+            border-radius: 10px 10px 40px 40px;
+            text-align: center;
+            padding: 10px;
+            font-weight: 800;
+            letter-spacing: .3em;
+            font-size: 12px;
+            color: #9097ad;
+            margin-bottom: 10px;
+        }
+
+        .tierlabel {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #9097ad;
+            margin: 10px 0 5px;
+        }
+
+        .secgrid {
+            display: grid;
+            gap: 6px;
+        }
+
+        .g4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .g5 {
+            grid-template-columns: repeat(5, 1fr);
+        }
+
+        .g6 {
+            grid-template-columns: repeat(6, 1fr);
+        }
+
+        .sec {
+            background: #222533;
+            border: 1.5px solid #2e3243;
+            border-radius: 9px;
+            padding: 7px 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            color: inherit;
+            font-size: 12px;
+        }
+
+        .sec span {
+            color: #9097ad;
+            font-size: 11px;
+        }
+
+        .av {
+            display: block;
+            width: 80%;
+            height: 4px;
+            background: #ffffff14;
+            border-radius: 9px;
+            overflow: hidden;
+        }
+
+        .av u {
+            display: block;
+            height: 100%;
+            background: #8b6cff;
+        }
     </style>
 </head>
 
@@ -218,7 +288,7 @@
                 S.run.pos -= step * (0.3 + Math.random() * 1.4);    // uneven speed, like a real queue
                 document.querySelector('#pos').textContent = Math.max(0, Math.ceil(S.run.pos)).toLocaleString();  // whole number with commas
                 document.querySelector('#bar').style.width = (1 - S.run.pos / S.run.qOrig) * 100 + '%';  // percent of the line you've gotten through
-                if (S.run.pos <= 0) renderResults();
+                if (S.run.pos <= 0) renderPick();
             });
 
             after(ri(3000, 15000), showVerify);     // pops up between 3 and 15 seconds into the queue
@@ -228,6 +298,60 @@
                 S.run.mistakes.push('Refreshed during the live queue');     // log it once, per click
                 toast('You refreshed and got sent to the back of the line.');
             }
+        }
+
+        function renderPick() {
+            clearTimers();
+            S.run.secs = buildSections();
+
+            app.innerHTML = `
+                <div class="card">
+                    <h1>Pick tickets</h1>
+                    <p>You need ${S.run.qty} ticket(s).</p>
+                    <div id="pickArea"></div>
+                </div>
+                `;
+            drawMap();
+
+        }
+
+        function buildSections() {
+            const secs = [];
+
+            function add(id, tier, price, rows, cols) {
+                const cap = rows * cols;                        // total seats in this section
+                secs.push({
+                    id, tier, price, rows, cols, cap,
+                    avail: Math.floor(cap * (0.35 + Math.random() * 0.55))
+                });   // 35-90% still open
+            }
+
+            ['FLR A', 'FLR B', 'FLR C', 'FLR D'].forEach(x => add(x, 'floor', ri(32, 42) * 10, 6, 10));
+            for (let i = 101; i <= 110; i++) add(String(i), 'lower', ri(18, 26) * 10, 8, 10);
+            // ____ your turn: upper sections 201 through 212, tier 'upper', price ri(85, 140), 8 rows, 12 cols
+            for (let i = 201; i <= 112; i++) add(String(i), 'upper', ri(85, 140) * 12, 8, 12);
+
+            return secs;
+        }
+
+        function drawMap() {
+            // builds one tier's label + grids of section buttons
+            const tier = (label, t, cls) => `
+            <div class="tierlabel">${label}</div>
+            <div class="secgrid ${cls}">
+                ${S.run.secs.filter(s => s.tier === t).map(s => `
+                <button class="sec" data-id="${s.id}">
+                    <b>${s.id}</b><span>$${s.price}</span>
+                    <i class="av"><u style="width:${s.avail / s.cap * 100}%"></u></i>
+                    </button>`).join('')}
+                </div>`;
+
+            document.querySelector(`#pickArea`).innerHTML = `
+                <div class="stage">STAGE</div>
+                ${tier('Floor', 'floor', 'g4')}
+                ${tier('Lower level', 'lower', 'g5')}
+                ${tier('Upper level', 'upper', 'g6')}
+                 `;
         }
 
         function startRun() {
