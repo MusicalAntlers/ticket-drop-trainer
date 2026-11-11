@@ -62,6 +62,36 @@
             padding: 11px 16px;
             border-radius: 12px;
         }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: #000a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dialog {
+            background: #191b25;
+            border: 1px solid #2e3243;
+            border-radius: 18px;
+            padding: 20px;
+            width: 320px;
+            text-align: center;
+        }
+
+        .tiles {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 14px 0;
+        }
+
+        .tiles button {
+            font-size: 30px;
+            padding: 14px 0;
+        }
     </style>
 </head>
 
@@ -103,6 +133,60 @@
             return Math.floor(a + Math.random() * (b - a + 1));     // random whole number from a to b
         }
 
+        const SYMS = ['*', '●', '▲', '◼︎', '❤︎', '◆'];
+
+        function shuffle(a) {                       // mixes up an array in place
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];        // swap two items
+            }
+            return a;
+        }
+
+        function showVerify() {
+            const target = SYMS[ri(0, 5)];              // the symbol they must tap
+            const tiles = shuffle([...SYMS]);           // [...SYMS] copies it, sot the original stays in order
+            let left = 5;
+
+            document.querySelector('#modal').innerHTML = `
+            <div class="overlay"><div class="dialog">
+                <h3>Are you still there?</h3>
+                <p>Tap the <b>${target}</b> to keep your place.</p>
+                <div class="tiles">${tiles.map(s => `<button data-s="${s}">${s}</button>`).join('')}</div>
+                <div>Time left: <b id="vl">${left}</b>s</div>
+                </div></div>
+                `;
+
+            const iv = every(1000, () => {
+                left--;
+                document.querySelector('#vl').textContent = left;
+                if (left <= 0) {
+                    close();
+                    S.run.pos += S.run.qOrig * 0.3;                 // big penalty
+                    S.run.mistakes.push('Missed an "are you still there?" check');
+                    toast('Check timed out, You lost ground in line.');
+                }
+            });
+
+            function close() {
+                document.querySelector('#modal').innerHTML = '';    // remove the pop-up
+                clearInterval(iv);
+            }
+
+            document.querySelectorAll('.tiles button').forEach(b => {
+                b.onclick = () => {
+                    close();
+                    if (b.dataset.s === target) {                                       // did they tap the right symbol? compare b.dataset.s to target
+                        toast('Verified ✓');
+                    } else {
+                        S.run.pos += S.run.qOrig * 0.15;                              // smaller penalty: 15% of the original line
+                        S.run.mistakes.push('Pushed the wrong tile in "are you still there?" check');                                   // a label for this mistake
+                        toast('Wrong tile. Pushed back in line.');
+                    }
+                };
+            });
+        }
+
         function toast(msg) {
             const t = document.createElement('div');    // make a new element
             t.className = 'toast';
@@ -125,6 +209,7 @@
                 <div class="bar"><i id="bar"></i></div>
                 <button id="refresh">↩︎ Page looks stuck? Refresh</button>
             </div>
+            <div id="modal"></div>
             `;
 
             const step = S.run.qOrig / (20 * 5);    // about 20 seconds at 5 ticks per second
@@ -135,6 +220,8 @@
                 document.querySelector('#bar').style.width = (1 - S.run.pos / S.run.qOrig) * 100 + '%';  // percent of the line you've gotten through
                 if (S.run.pos <= 0) renderResults();
             });
+
+            after(ri(3000, 15000), showVerify);     // pops up between 3 and 15 seconds into the queue
 
             document.querySelector('#refresh').onclick = () => {
                 S.run.pos = S.run.qOrig * (0.9 + Math.random() * 0.15);     // back near the start of the line
