@@ -48,6 +48,25 @@
             chaos: { label: 'Chaos', lobby: 8, qMin: 30000, qMax: 90000 }
         };
 
+        let timers = [];    // every active timer id goes in here
+
+        function every(ms, fn) {
+            const t = setInterval(fn, ms);
+            timers.push(t);     // ____ add t to the timers list
+            return t;
+        }
+
+        function after(ms, fn) {
+            const t = setTimeout(fn, ms);
+            timers.push(t);  // ____ same
+            return t;
+        }
+
+        function clearTimers() {
+            timers.forEach(t => clearInterval(t));  // ____ loop over timers and stop each one (clearInterval works on both kinds)
+            timers = [];                            // ____ then reset timers to an empty array
+        }
+
         function startRun() {
             S.run = {
                 d: DIFF[S.settings.diff],             // look up the difficulty object using the chosen setting
@@ -58,6 +77,8 @@
         }
 
         function renderSetup() {
+
+            clearTimers();
             //1. Draw the screen by replacing everything inside #app with new HTML.
             //   Backticks (`) allow a multi-line string.
             app.innerHTML = `
@@ -81,24 +102,40 @@
                 b.onclick = () => { S.settings.qty = +b.dataset.v; renderSetup(); };        // 2. set qty 3. the + makes it a number
             });
             document.querySelector('#start').onclick = startRun;
+            document.querySelector('#quit').onclick = renderSetup;
         }
 
         function renderLobby() {
+
+            clearTimers();
+            let left = S.run.d.lobby;
             //1. Draw the screen by replacing everything inside #app with new HTML.
             //   Backticks (`) allow a multi-line string.
             app.innerHTML = `
             <div class="card">
                 <h1>Waiting room</h1>
-                <p>${S.run.d.label} * ${S.run.qty} tickets</p>
-                <button id="results">Results</button>
+                <p>${S.run.d.label} &middot; ${S.run.qty} tickets</p>
+                <div id="cd">${left}</div>
+                <button id="quit">Quit</button>
             </div>
             `;
+
+            every(1000, () => {
+                left--;                                             // one second passed
+                document.querySelector('#cd').textContent = left;   // update just the number, not the whole screen
+                if (left <= 0) {
+                    S.run.t0 = performance.now();                   // the moment the "sale" starts
+                    renderResults();                                // becomes renderQueue() in the next step
+                }
+            });
 
             //2. Wire up the button, It only exists now, after the line above ran.
             document.querySelector('#results').onclick = renderResults;
         }
 
         function renderResults() {
+
+            clearTimers();
             //1. Draw the screen by replacing everything inside #app with new HTML.
             //   Backticks (`) allow a multi-line string.
             app.innerHTML = `
