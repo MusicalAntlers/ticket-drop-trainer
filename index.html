@@ -162,6 +162,43 @@
             height: 100%;
             background: #8b6cff;
         }
+
+        .seatgrid {
+            display: grid;
+            gap: 4px;
+            margin: 12px 0;
+        }
+
+        .rl {
+            font-size: 11px;
+            color: #9097ad;
+            display: flex;
+            align-items: center;
+        }
+
+        .seat {
+            aspect-ratio: 1;
+            border-radius: 5px 5px 3px 3px;
+            border: none;
+            padding: 0;
+            min-width: 18px;
+        }
+
+        .seat.a {
+            background: #8b6cff;
+            cursor: pointer;
+            /* open */
+        }
+
+        .seat.x {
+            background: #2c2f3e;
+            /* taken */
+        }
+
+        .seat.s {
+            background: #3ecf8e;
+            /* yours */
+        }
     </style>
 </head>
 
@@ -204,6 +241,8 @@
         }
 
         const SYMS = ['*', '●', '▲', '◼︎', '❤︎', '◆'];
+
+        const ROWS = 'ABCDEFGHIJKLM';
 
         function shuffle(a) {                       // mixes up an array in place
             for (let i = a.length - 1; i > 0; i--) {
@@ -329,7 +368,7 @@
             ['FLR A', 'FLR B', 'FLR C', 'FLR D'].forEach(x => add(x, 'floor', ri(32, 42) * 10, 6, 10));
             for (let i = 101; i <= 110; i++) add(String(i), 'lower', ri(18, 26) * 10, 8, 10);
             // ____ your turn: upper sections 201 through 212, tier 'upper', price ri(85, 140), 8 rows, 12 cols
-            for (let i = 201; i <= 112; i++) add(String(i), 'upper', ri(85, 140) * 12, 8, 12);
+            for (let i = 201; i <= 212; i++) add(String(i), 'upper', ri(85, 140) * 12, 8, 12);
 
             return secs;
         }
@@ -352,6 +391,69 @@
                 ${tier('Lower level', 'lower', 'g5')}
                 ${tier('Upper level', 'upper', 'g6')}
                  `;
+
+            document.querySelectorAll('.sec').forEach(b => {
+                b.onclick = () => {
+                    const s = S.run.secs.find(x => x.id === b.dataset.id);      // the section object for the button
+                    openSection(s);
+                };
+            });
+        }
+
+        function openSection(s) {
+            if (!s.seats) {                                 // only build seats once per section
+                const n = s.rows * s.cols;
+                s.seats = Array(n).fill('x');               // start with every seat taken...
+                shuffle([...Array(n).keys()])              // ...then a shuffled list of seat numbers 0...n-1
+                    .slice(0, s.avail)                          // take as many as are available
+                    .forEach(i => s.seats[i] = 'a');            // and mark those open
+            }
+            S.run.view = { sec: s, sel: [] };               // which section you're looking at + your selected seats
+            drawSeats();
+        }
+
+        function drawSeats() {
+            const s = S.run.view.sec;
+            let g = '';
+            for (let r = 0; r < s.rows; r++) {
+                g += `<div class="rl">${ROWS[r]}</div>`;         // row letter at the start of each row
+                for (let c = 0; c < s.cols; c++) {
+                    g += `<button class="seat" data-i="${r * s.cols + c}"></button>`;
+                }
+            }
+
+            document.querySelector('#pickArea').innerHTML = `
+                <button id="back">&larr; All sections</button>
+                <h3>Section ${s.id} &middot; $${s.price} each</h3>
+                <div class="seatgrid" style="grid-template-columns: 16px repeat(${s.cols}, 1fr)">${g}</div>
+                <div id="selc"></div>
+            `;
+
+            document.querySelector('#back').onclick = drawMap;
+
+            document.querySelectorAll('.seat').forEach(b => {
+                b.onclick = () => {
+                    const i = +b.dataset.i;
+                    const sel = S.run.view.sel;
+                    if (s.seats[i] !== 'a') return;                     //can't pick a taken seat
+                    if (sel.includes(i)) {
+                        S.run.view.sel = sel.filter(x => x !== i);                         // already selected:remove it (hint: filter)
+                    } else {
+                        sel.push(i);
+                        if (sel.length > S.run.qty) sel.shift();        // over the limit: drop the oldest pick
+                    }
+                    updateSeats();
+                };
+            });
+            updateSeats();
+        }
+        function updateSeats() {
+            const s = S.run.view.sec;
+            document.querySelectorAll('.seat').forEach(b => {
+                const i = +b.dataset.i;
+                b.className = 'seat ' + (S.run.view.sel.includes(i) ? 's' : s.seats[i]);                   // 's' if its in your selection, otherwise s.seats[i] ('a' or 'x')
+            });
+            document.querySelector('#selc').textContent = `${S.run.view.sel.length} of ${S.run.qty} selected`;
         }
 
         function startRun() {
