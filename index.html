@@ -102,7 +102,7 @@
                 b.onclick = () => { S.settings.qty = +b.dataset.v; renderSetup(); };        // 2. set qty 3. the + makes it a number
             });
             document.querySelector('#start').onclick = startRun;
-            document.querySelector('#quit').onclick = renderSetup;
+
         }
 
         function renderLobby() {
@@ -130,7 +130,7 @@
             });
 
             //2. Wire up the button, It only exists now, after the line above ran.
-            document.querySelector('#results').onclick = renderResults;
+            document.querySelector('#quit').onclick = renderSetup;
         }
 
         function renderResults() {
