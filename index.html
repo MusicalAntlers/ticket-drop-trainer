@@ -50,6 +50,18 @@
             width: 0;
             background: #8b6cff;
         }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 22px;
+            transform: translateX(-50%);
+            background: #2a2d3c;
+            border: 1px solid #ff5d6c;
+            color: #ffc2c7;
+            padding: 11px 16px;
+            border-radius: 12px;
+        }
     </style>
 </head>
 
@@ -91,6 +103,14 @@
             return Math.floor(a + Math.random() * (b - a + 1));     // random whole number from a to b
         }
 
+        function toast(msg) {
+            const t = document.createElement('div');    // make a new element
+            t.className = 'toast';
+            t.textContent = msg;
+            document.body.appendChild(t);               // add it to the page
+            setTimeout(() => t.remove(), 2300);         // remove it after 2.3 seconds
+        }
+
         function renderQueue() {
             clearTimers();
             S.run.qOrig = ri(S.run.d.qMin, S.run.d.qMax);     // starting place in line: use the difficulty's qMin and qMax
@@ -100,8 +120,10 @@
             <div class="card">
                 <h1>In line</h1>
                 <div>People ahead of you</div>
+                <div>The sale is live. Don't refresh, or you'll lose your place in line.</div>
                 <div class="pos" id="pos"></div>
                 <div class="bar"><i id="bar"></i></div>
+                <button id="refresh">↩︎ Page looks stuck? Refresh</button>
             </div>
             `;
 
@@ -113,6 +135,12 @@
                 document.querySelector('#bar').style.width = (1 - S.run.pos / S.run.qOrig) * 100 + '%';  // percent of the line you've gotten through
                 if (S.run.pos <= 0) renderResults();
             });
+
+            document.querySelector('#refresh').onclick = () => {
+                S.run.pos = S.run.qOrig * (0.9 + Math.random() * 0.15);     // back near the start of the line
+                S.run.mistakes.push('Refreshed during the live queue');     // log it once, per click
+                toast('You refreshed and got sent to the back of the line.');
+            }
         }
 
         function startRun() {
