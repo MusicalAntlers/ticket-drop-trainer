@@ -208,6 +208,24 @@
         .locked .sec span {
             filter: blur(5px);
         }
+
+        .hold {
+            background: #8b6cff1f;
+            border: 1px solid #8b6cff55;
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .hold.urgent {
+            background: #ff5d6c22;
+            border-color: #ff5d6c;
+        }
+
+        .err {
+            outline: 2pm solid #ff5d6c;
+            border-radius: 8px;
+        }
     </style>
 </head>
 
@@ -492,7 +510,7 @@
                     price: s.price,
                     qty: S.run.qty
                 };
-                renderResults();        // becomes renderCheckout() in Step 6
+                renderCheckout();        // becomes renderCheckout() in Step 6
             };
 
             document.querySelectorAll('.seat').forEach(b => {
@@ -511,6 +529,75 @@
             });
 
             updateSeats();
+        }
+
+        function renderCheckout() {
+            clearTimers();
+            const o = S.run.order;
+            S.run.coStart = performance.now();
+            S.run.pickMs = S.run.coStart - S.run.pickStart;     // how long picking took
+            let left = 60;                                      // seconds your tickets are held
+
+            app.innerHTML = `
+            <div class="card">
+                <h1>Checkout</h1>
+                <div class="hold" id="hold">Tickets held for <b id="hl">${left}</b>s</div>
+                <p><b>${o.desc}</b><br>${o.qty} * $${(o.qty * o.price * 1.27).toFixed(2)} with fees</p>
+
+                <div id="f-ins">
+                    <p>Ticket protection:</p>
+                    <label><input type="radio" name="ins" value="y"> Yes, protect my order</label><br>
+                    <label><input type="radio" name="ins" value="n">No thanks</label>
+                </div>
+
+                <p>💳 Saved card ●●●● 4242</P>
+                <input id="cvv" inputmode="numeric" maxlength="4" placeholder="Security code (CVV)">
+
+                <p id="f-terms"><label><input type="checkbox" id="terms"> I agree to the Terms of Use</label></p>
+
+                <button id="place">Place order</button>
+                </div>
+                `;
+
+            every(1000, () => {
+                left--;
+                document.querySelector('#hl').textContent = left;
+                if (left <= 10) document.querySelector('#hold').classList.add('urgent');
+                if (left <= 0) {
+                    S.run.ok = false;
+                    S.run.reason = 'Your ticket hold expired before you placed the order.';
+                    renderResults();
+                }
+            });
+
+            document.querySelector('#place').onclick = () => {
+                let bad = false;
+
+                const ins = document.querySelector('input[name=ins]:checked');     //the picked radio, or null
+                if (!ins) {
+                    document.querySelector('#f-ins').classList.add('err');
+                    S.run.mistakes.push('Skipped the ticket protection question');
+                    bad = true;
+                }
+
+                if (!document.querySelector('#terms').checked) {                                            // terms box NOT checked
+                    document.querySelector('#f-terms').classList.add('err');
+                    S.run.mistakes.push('Forgot to tick the terms box');
+                    bad = true;
+                }
+
+                if (document.querySelector('#cvv').value.trim() !== S.run.cvv) {                                           // CVV doesn't match
+                    document.querySelector('#cvv').classList.add('err');
+                    S.run.mistakes.push('Wrong or missing CVV');
+                    bad = true;
+                }
+
+                if (bad) { toast('Fix the highlighted fields.'); returns; }
+
+                S.run.ok = true;
+                S.run.coMs = performance.now() - S.run.coStart;     // how long checkout took
+                renderResults();
+            };
         }
 
         function updateSeats() {
@@ -565,7 +652,8 @@
                 qty: S.settings.qty,                  // the chosen quantity
                 mistakes: [],
                 code: 'TOUR' + ri(1000, 9999),         // e.g. TOUR4821
-                unlocked: false
+                unlocked: false,
+                cvv: String(ri(100, 999))
             };
             renderLobby();
         }
@@ -610,6 +698,7 @@
                 <h1>Waiting room</h1>
                 <p>${S.run.d.label} &middot; ${S.run.qty} tickets</p>
                 <p>Your presale code: <b>${S.run.code}</b> (memorize it!)</p>
+                <p>Card CVV: <b>${S.run.cvv}</b></p>
                 <div id="cd">${left}</div>
                 <button id="quit">Quit</button>
             </div>
@@ -637,6 +726,7 @@
             <div class="card">
                 <h1>Results</h1>
                 <p>Practice a big onsale until it's muscle memory.</p>
+                <p>${S.run && S.run.ok ? '🎉 You got tickets! ' + S.run.order.desc : 'Missed it. ' + (S.run && S.run.reason || '')}</p>
                 <button id="play-again">Play again</button>
             </div>
             `;
