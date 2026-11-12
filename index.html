@@ -199,6 +199,11 @@
             background: #3ecf8e;
             /* yours */
         }
+
+        .sec.sold {
+            opacity: .25;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 
@@ -350,7 +355,12 @@
                     <div id="pickArea"></div>
                 </div>
                 `;
+
+            S.run.view = null;
             drawMap();
+
+            every(500, tickPick);
+
 
         }
 
@@ -368,7 +378,7 @@
             ['FLR A', 'FLR B', 'FLR C', 'FLR D'].forEach(x => add(x, 'floor', ri(32, 42) * 10, 6, 10));
             for (let i = 101; i <= 110; i++) add(String(i), 'lower', ri(18, 26) * 10, 8, 10);
             // ____ your turn: upper sections 201 through 212, tier 'upper', price ri(85, 140), 8 rows, 12 cols
-            for (let i = 201; i <= 212; i++) add(String(i), 'upper', ri(85, 140) * 12, 8, 12);
+            for (let i = 201; i <= 212; i++) add(String(i), 'upper', ri(85, 140), 8, 12);
 
             return secs;
         }
@@ -429,7 +439,7 @@
                 <div id="selc"></div>
             `;
 
-            document.querySelector('#back').onclick = drawMap;
+            document.querySelector('#back').onclick = () => { S.run.view = null; drawMap(); }
 
             document.querySelectorAll('.seat').forEach(b => {
                 b.onclick = () => {
@@ -454,6 +464,42 @@
                 b.className = 'seat ' + (S.run.view.sel.includes(i) ? 's' : s.seats[i]);                   // 's' if its in your selection, otherwise s.seats[i] ('a' or 'x')
             });
             document.querySelector('#selc').textContent = `${S.run.view.sel.length} of ${S.run.qty} selected`;
+        }
+
+        function updateMap() {
+            document.querySelectorAll('.sec').forEach(b => {
+                const s = S.run.secs.find(x => x.id === b.dataset.id);
+                const frac = Math.floor(s.avail) / s.cap;
+                b.querySelector('u').style.width = frac * 100 + '%';           // the bar width, as a percent string
+                b.classList.toggle('sold', frac <= 0);                  // add 'sold' when no seats are left
+            });
+        }
+
+        function tickPick() {
+            let lostSel = false;
+
+            S.run.secs.forEach(s => {
+                const before = Math.floor(s.avail);
+                s.avail = Math.max(0, s.avail - s.cap * 0.012 * Math.random() * 2);     // sell a few seats
+                const after = Math.floor(s.avail);
+
+                // if this section's seats exist, mark (before - after) random open seats as taken
+                if (s.seats && after < before) {
+                    const open = [];
+                    s.seats.forEach((v, i) => { if (v === 'a') open.push(i); });        // list of open seat numbers
+                    shuffle(open).slice(0, before - after).forEach(i => {
+                        s.seats[i] = 'x';
+                        // if you're viewing this section and had picked this seat, remove it from your selection
+                        if (S.run.view && S.run.view.sec === s && S.run.view.sel.includes(i)) {
+                            S.run.view.sel = S.run.view.sel.filter(x => x !== i);         // same filter trick as deselecting
+                            lostSel = true;
+                        }
+                    });
+                }
+            });
+
+            if (lostSel) toast('A seat you picked was just taken!');
+            if (S.run.view) updateSeats(); else updateMap();      // update whichever screen you're on
         }
 
         function startRun() {
