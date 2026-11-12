@@ -232,6 +232,28 @@
             font-weight: 800;
             line-height: 1;
         }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat {
+            background: #222533;
+            border-radius: 12px;
+            padding: 10px 12px;
+        }
+
+        .stat span {
+            display: block;
+            font-size: 12px;
+            color: #9097ad;
+        }
+
+        .stat b {
+            font-size: 19px;
+        }
     </style>
 </head>
 
@@ -278,6 +300,16 @@
             const chance = Math.min(0.5, 0.06 * (1 + secs / 10));           // 6% at the start, growing, capped at 50%
             return Math.random() < chance;                                  // true = someone beat you
         }
+
+        const TIPS = {
+            'Refreshed during the live queue': 'Never refresh once the line is live, The page updates on its own.',
+            'Missed an "are you still there?" check': 'Keep the queue tab in front and stay near your device.',
+            'Pushed the wrong tile in "are you still there?" check': 'Slow down for a split second on checks. A wrong tap costs more than a careful one.',
+            'Mistyped the presale code': 'Paste your code from your notes instead of typing it',
+            'Skipped the ticket protection question': 'Decide on ticket protection before the sale so it takes one tap.',
+            'Forgot to tick the terms box': "Look for the terms checkbox. It's the easiest field to miss.",
+            'Wrong of missing CVV': 'Know you CVV by heart, or keep it in your notes.'
+        };
 
         const SYMS = ['*', '●', '▲', '◼︎', '❤︎', '◆'];
 
@@ -745,17 +777,52 @@
         function renderResults() {
 
             clearTimers();
+            const r = S.run;
+            const fmt = ms => (ms / 1000).toFixed(1) + 's';      // 12345 → "12.3s"
+
+            // count each mistake type: { 'Forgot to tick the terms box': 2, ... }
+            const groups = {};
+            r.mistakes.forEach(m => { groups[m] = (groups[m] || 0) + 1; });
+
+            // one tip per mistake type, no repeats
+            const tips = Object.keys(groups).map(m => TIPS[m]).filter(Boolean);
+            if (r.snipes) tips.push("Don't hold out for perfect seats. Grab the first good option.");
+            if (r.ok && !tips.length) tips.push('Clean run! Try a harder difficulty next.');       // a message for a clean run
+
+            const stat = (label, value) => `<div class="stat"><span>${label}</span><b>${value}</b></div>`;
+
             //1. Draw the screen by replacing everything inside #app with new HTML.
             //   Backticks (`) allow a multi-line string.
             app.innerHTML = `
-            <div class="card">
-                <h1>Results</h1>
+            <div class="card" style="text-align:center">
                 <div class="grade">${S.run.ok ? S.run.grade : '✕'}</div>
                 <h3>${S.run.ok ? '🎉 You got tickets!' : 'Missed it this time'}</h3>
                 <p>${S.run.ok ? S.run.order.desc : S.run.reason}</p>
-                <p>Score: ${S.run.ok ? (S.run.score / 1000).toFixed(1) + 's' : '-'} (lower is better)</p>
-                <button id="play-again">Play again</button>
             </div>
+
+            <div class="card">
+                <h3>Breakdown</h3>
+                <div class="stats">
+                    ${stat('Score (lower is better)', r.ok ? fmt(r.score) : "-")}
+                    ${stat('Time in line (luck)', fmt(r.pickStart - r.tO))}
+                    ${stat('Code unlocked after', r.unlockMs != null ? fmt(r.unlockMs) : 'never')}
+                    ${stat('Picking tickets', fmt(finish()))}
+                    ${stat('Checkout', r.coMs != null ? fmt(r.coMs) : '_')}
+                    ${stat('Beaten by other fans', r.snipes || 0)}
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Mistakes (${mistakes.length})</h3>
+                ${Object.entries(groups).map(([m, n]) => `<p>${m} <b>x${n}</b></p>`).join('') || '<p>None!</p>'}
+            </div>
+
+            <div class="card">
+                <h3>Coach's notes</h3>
+                <ul>${tips.map(t => `<li>${t}</li>`).join('')}</ul>
+            </div>
+
+            <button id="play-again">Play again</button>
             `;
 
             //2. Wire up the button, It only exists now, after the line above ran.
