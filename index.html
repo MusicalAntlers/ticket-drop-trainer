@@ -245,6 +245,12 @@
             return Math.floor(a + Math.random() * (b - a + 1));     // random whole number from a to b
         }
 
+        function snipeCheck() {
+            const secs = (performance.now() - S.run.pickStart) / 1000;      // seconds since picking started
+            const chance = Math.min(0.5, 0.06 * (1 + secs / 10));           // 6% at the start, growing, capped at 50%
+            return Math.random() < chance;                                  // true = someone beat you
+        }
+
         const SYMS = ['*', '●', '▲', '◼︎', '❤︎', '◆'];
 
         const ROWS = 'ABCDEFGHIJKLM';
@@ -346,6 +352,7 @@
 
         function renderPick() {
             clearTimers();
+            S.run.pickStart = performance.now();
             S.run.secs = buildSections();
 
             app.innerHTML = `
@@ -437,9 +444,32 @@
                 <h3>Section ${s.id} &middot; $${s.price} each</h3>
                 <div class="seatgrid" style="grid-template-columns: 16px repeat(${s.cols}, 1fr)">${g}</div>
                 <div id="selc"></div>
+                <button id="gettix">Get tickets</button>
             `;
 
             document.querySelector('#back').onclick = () => { S.run.view = null; drawMap(); }
+
+            document.querySelector('#gettix').onclick = () => {
+                const sel = S.run.view.sel;
+
+                if (snipeCheck()) {
+                    sel.forEach(i => s.seats[i] = 'x');                 // those seats are gone
+                    s.avail = s.seats.filter(v => v === 'a').length;    // recount what's left
+                    S.run.view.sel = [];
+                    S.run.snipes = (S.run.snipes || 0) + 1;
+                    toast('Another fan checked out those seats first, Grab new ones, fast!');
+                    updateSeats();
+                    return;                                             // stop here: no checkout
+                }
+
+                // you got them!
+                S.run.order = {
+                    desc: `Section ${s.id} ・ Seats ${sel.map(i => ROWS[Math.floor(i / s.cols)] + (i % s.cols + 1)).join(', ')}`,
+                    price: s.price,
+                    qty: S.run.qty
+                };
+                renderResults();        // becomes renderCheckout() in Step 6
+            };
 
             document.querySelectorAll('.seat').forEach(b => {
                 b.onclick = () => {
@@ -455,8 +485,10 @@
                     updateSeats();
                 };
             });
+
             updateSeats();
         }
+
         function updateSeats() {
             const s = S.run.view.sec;
             document.querySelectorAll('.seat').forEach(b => {
@@ -464,6 +496,7 @@
                 b.className = 'seat ' + (S.run.view.sel.includes(i) ? 's' : s.seats[i]);                   // 's' if its in your selection, otherwise s.seats[i] ('a' or 'x')
             });
             document.querySelector('#selc').textContent = `${S.run.view.sel.length} of ${S.run.qty} selected`;
+            document.querySelector('#gettix').disabled = S.run.view.sel.length !== S.run.qty;         // true when you haven't picked exactly your quantity
         }
 
         function updateMap() {
