@@ -223,8 +223,14 @@
         }
 
         .err {
-            outline: 2pm solid #ff5d6c;
+            outline: 2px solid #ff5d6c;
             border-radius: 8px;
+        }
+
+        .grade {
+            font-size: 84px;
+            font-weight: 800;
+            line-height: 1;
         }
     </style>
 </head>
@@ -542,7 +548,7 @@
             <div class="card">
                 <h1>Checkout</h1>
                 <div class="hold" id="hold">Tickets held for <b id="hl">${left}</b>s</div>
-                <p><b>${o.desc}</b><br>${o.qty} * $${(o.qty * o.price * 1.27).toFixed(2)} with fees</p>
+                <p><b>${o.desc}</b><br>${o.qty} * $${o.price} • Total $${(o.qty * o.price * 1.27).toFixed(2)} with fees</p>
 
                 <div id="f-ins">
                     <p>Ticket protection:</p>
@@ -564,9 +570,7 @@
                 document.querySelector('#hl').textContent = left;
                 if (left <= 10) document.querySelector('#hold').classList.add('urgent');
                 if (left <= 0) {
-                    S.run.ok = false;
-                    S.run.reason = 'Your ticket hold expired before you placed the order.';
-                    renderResults();
+                    finish(false, 'Your ticket hold expired before you placed the order.');
                 }
             });
 
@@ -592,11 +596,9 @@
                     bad = true;
                 }
 
-                if (bad) { toast('Fix the highlighted fields.'); returns; }
+                if (bad) { toast('Fix the highlighted fields.'); return; }
 
-                S.run.ok = true;
-                S.run.coMs = performance.now() - S.run.coStart;     // how long checkout took
-                renderResults();
+                finish(true);
             };
         }
 
@@ -717,6 +719,29 @@
             document.querySelector('#quit').onclick = renderSetup;
         }
 
+        function finish(ok, reason) {
+            clearTimers();
+            const r = S.run;
+            r.ok = ok;
+            r.reason = reason || '';
+            r.end = performance.now();
+
+            if (r.coStart) r.coMs = r.end - r.coStart;                      // checkout time, if you made it that far
+            const pickMs = r.pickMs != null ? r.pickMs : r.end - r.pickStart;
+
+            r.ctrl = pickMs + (r.coMs || 0);                                // time you actually controlled
+            r.score = r.ctrl + r.mistakes.length * 3000;                    // + 3 seconds (3000 ms) per mistake
+
+            r.grade = !ok ? 'X'
+                : r.score < 20000 ? 'S'
+                    : r.score < 35000 ? 'A'
+                        : r.score < 55000 ? 'B'
+                            : r.score < 80000 ? 'C'
+                                : 'D';
+
+            renderResults();
+        }
+
         function renderResults() {
 
             clearTimers();
@@ -725,8 +750,10 @@
             app.innerHTML = `
             <div class="card">
                 <h1>Results</h1>
-                <p>Practice a big onsale until it's muscle memory.</p>
-                <p>${S.run && S.run.ok ? '🎉 You got tickets! ' + S.run.order.desc : 'Missed it. ' + (S.run && S.run.reason || '')}</p>
+                <div class="grade">${S.run.ok ? S.run.grade : '✕'}</div>
+                <h3>${S.run.ok ? '🎉 You got tickets!' : 'Missed it this time'}</h3>
+                <p>${S.run.ok ? S.run.order.desc : S.run.reason}</p>
+                <p>Score: ${S.run.ok ? (S.run.score / 1000).toFixed(1) + 's' : '-'} (lower is better)</p>
                 <button id="play-again">Play again</button>
             </div>
             `;
