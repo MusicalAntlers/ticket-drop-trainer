@@ -204,6 +204,10 @@
             opacity: .25;
             cursor: not-allowed;
         }
+
+        .locked .sec span {
+            filter: blur(5px);
+        }
     </style>
 </head>
 
@@ -359,9 +363,28 @@
                 <div class="card">
                     <h1>Pick tickets</h1>
                     <p>You need ${S.run.qty} ticket(s).</p>
-                    <div id="pickArea"></div>
+                    <form id="unlock">
+                        <input id="code" placeholder="Enter presale code" autocomplete="off">
+                        <button>Unlock</button>
+                    </form>
+                    <div id="pickArea" class="locked"></div>
                 </div>
                 `;
+
+            document.querySelector('#unlock').onsubmit = e => {
+                e.preventDefault();                                             // stop the page from reloading
+                const typed = document.querySelector('#code').value.trim().toUpperCase();
+                if (typed === S.run.code) {
+                    S.run.unlocked = true;
+                    S.run.unlockMs = performance.now() - S.run.pickStart;       // how fast you unlocked
+                    document.querySelector('#unlock').remove();                 // hide the box
+                    document.querySelector('#pickArea').classList.remove('locked');
+                    toast('Unlocked!');
+                } else {
+                    S.run.mistakes.push('Mistyped the presale code');
+                    toast("That code wasn't recognized.");
+                }
+            };
 
             S.run.view = null;
             drawMap();
@@ -411,6 +434,7 @@
 
             document.querySelectorAll('.sec').forEach(b => {
                 b.onclick = () => {
+                    if (!S.run.unlocked) { toast('Enter your presale code first.'); return; }
                     const s = S.run.secs.find(x => x.id === b.dataset.id);      // the section object for the button
                     openSection(s);
                 };
@@ -539,7 +563,9 @@
             S.run = {
                 d: DIFF[S.settings.diff],             // look up the difficulty object using the chosen setting
                 qty: S.settings.qty,                  // the chosen quantity
-                mistakes: []
+                mistakes: [],
+                code: 'TOUR' + ri(1000, 9999),         // e.g. TOUR4821
+                unlocked: false
             };
             renderLobby();
         }
@@ -583,6 +609,7 @@
             <div class="card">
                 <h1>Waiting room</h1>
                 <p>${S.run.d.label} &middot; ${S.run.qty} tickets</p>
+                <p>Your presale code: <b>${S.run.code}</b> (memorize it!)</p>
                 <div id="cd">${left}</div>
                 <button id="quit">Quit</button>
             </div>
