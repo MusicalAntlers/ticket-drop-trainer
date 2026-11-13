@@ -308,7 +308,7 @@
             'Mistyped the presale code': 'Paste your code from your notes instead of typing it',
             'Skipped the ticket protection question': 'Decide on ticket protection before the sale so it takes one tap.',
             'Forgot to tick the terms box': "Look for the terms checkbox. It's the easiest field to miss.",
-            'Wrong of missing CVV': 'Know you CVV by heart, or keep it in your notes.'
+            'Wrong or missing CVV': 'Know your CVV by heart, or keep it in your notes.'
         };
 
         const SYMS = ['*', '●', '▲', '◼︎', '❤︎', '◆'];
@@ -795,25 +795,25 @@
             //   Backticks (`) allow a multi-line string.
             app.innerHTML = `
             <div class="card" style="text-align:center">
-                <div class="grade">${S.run.ok ? S.run.grade : '✕'}</div>
-                <h3>${S.run.ok ? '🎉 You got tickets!' : 'Missed it this time'}</h3>
-                <p>${S.run.ok ? S.run.order.desc : S.run.reason}</p>
+                <div class="grade">${r.ok ? r.grade : '✕'}</div>
+                <h3>${r.ok ? '🎉 You got tickets!' : 'Missed it this time'}</h3>
+                <p>${r.ok ? r.order.desc : r.reason}</p>
             </div>
 
             <div class="card">
                 <h3>Breakdown</h3>
                 <div class="stats">
                     ${stat('Score (lower is better)', r.ok ? fmt(r.score) : "-")}
-                    ${stat('Time in line (luck)', fmt(r.pickStart - r.tO))}
+                    ${stat('Time in line (luck)', fmt(r.pickStart - r.t0))}
                     ${stat('Code unlocked after', r.unlockMs != null ? fmt(r.unlockMs) : 'never')}
-                    ${stat('Picking tickets', fmt(finish()))}
+                    ${stat('Picking tickets', fmt(r.pickMs != null ? r.pickMs : r.end - r.pickStart))}
                     ${stat('Checkout', r.coMs != null ? fmt(r.coMs) : '_')}
                     ${stat('Beaten by other fans', r.snipes || 0)}
                 </div>
             </div>
 
             <div class="card">
-                <h3>Mistakes (${mistakes.length})</h3>
+                <h3>Mistakes (${r.mistakes.length})</h3>
                 ${Object.entries(groups).map(([m, n]) => `<p>${m} <b>x${n}</b></p>`).join('') || '<p>None!</p>'}
             </div>
 
