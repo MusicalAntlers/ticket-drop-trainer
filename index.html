@@ -13,6 +13,83 @@
             font-family: system-ui, sans-serif;
         }
 
+        button {
+            font: inherit;
+            color: inherit;
+            background: #222533;
+            border: 1.5px solid #2e3243;
+            border-radius: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: transform .05s, border-color .15s;
+        }
+
+        button:hover {
+            border-color: #4a4f66;
+        }
+
+        button:active {
+            transform: scale(.97);
+        }
+
+        /* a little "press" feel*/
+        button:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+
+        input {
+            font: inherit;
+            font-size: 16px;
+            /* 16px+ stops iPhones from zooming in when you tap a field */
+            color: inherit;
+            background: #0f1016;
+            border: 1.5px solid #2e3243;
+            border-radius: 10px;
+            padding: 10px 12px
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #8b6cff;
+        }
+
+        .primary {
+            background: #8b6cff;
+            border-color: #8b6cff;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .big {
+            width: 100%;
+            padding: 14px;
+            font-size: 17px;
+            margin-top: 10px;
+        }
+
+        .seg {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+            gap: 8px;
+        }
+
+        .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #9097ad;
+            font-weight: 700;
+            margin: 16px 0 6px;
+        }
+
+        .on {
+            outline: none;
+            border-color: #8b6cff;
+            background: #8b6cff22;
+            /* replaces old .on rule*/
+        }
+
         #app {
             max-width: 640px;
             margin: 0 auto;
@@ -25,10 +102,6 @@
             border-radius: 16px;
             padding: 16px;
             margin: 12px 0;
-        }
-
-        .on {
-            outline: 2px solid #8b6cff;
         }
 
         .pos {
@@ -281,6 +354,60 @@
             margin-top: 10px;
             width: 100%;
         }
+
+        @media (max-width: 480px) {
+            #app {
+                padding: 10px;
+            }
+
+            .card {
+                padding: 12px;
+                border-radius: 14px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .pos {
+                font-size: 24px;
+            }
+
+            .g5 {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            /* 4 lower sesctions per row, not 5 */
+            .g6 {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            /* 4 upper per row, not 6 */
+            .sec {
+                padding: 9px 2px;
+            }
+
+            /* taller section buttons = easier taps*/
+            .seatgrid {
+                gap: 3px;
+            }
+
+            .seat {
+                min-width: 0;
+            }
+
+            /* let seats shrink to fit narrow screens */
+            .dialog {
+                width: 100%;
+            }
+        }
+
+        .countdown {
+            font-size: 64px;
+            font-weight: 800;
+            text-align: center;
+            margin: 10px 0;
+        }
     </style>
 </head>
 
@@ -296,7 +423,7 @@
         const DIFF = {
             arena: { label: 'Arena', lobby: 8, qMin: 800, qMax: 4000, priceChange: 0 },
             stadium: { label: 'Stadium', lobby: 8, qMin: 8000, qMax: 25000, priceChange: 0.15 },
-            chaos: { label: 'Chaos', lobby: 8, qMin: 30000, qMax: 90000, priceChange: 1 }
+            chaos: { label: 'Chaos', lobby: 8, qMin: 30000, qMax: 90000, priceChange: 0.4 }
         };
 
         let timers = [];    // every active timer id goes in here
@@ -464,7 +591,7 @@
                     ${S.run.unlocked ? '' : `
                     <form id="unlock">
                         <input id="code" placeholder="Enter presale code" autocomplete="off">
-                        <button>Unlock</button>
+                        <button class="primary">Unlock</button>
                     </form>`}
                     <div id="pickArea" class="${S.run.unlocked ? '' : 'locked'}"></div>
                 </div>
@@ -640,7 +767,7 @@
             n.dataset.exp = String(open);                             // remember if it was drawn open
             n.innerHTML = `
             <b>Sec ${lst.sec} ・ Row ${lst.row}</b> ・ ${lst.q} ticket${lst.q > 1 ? 's' : ''} ・ <b>$${lst.price}</b> each
-            ${open ? `<button class="buy">Buy ${qty} for $${lst.price * qty}</button>` : ''}`;
+            ${open ? `<button class="buy primary">Buy ${qty} for $${lst.price * qty}</button>` : ''}`;
 
             // tap the row: open/close it
             n.onclick = () => {
@@ -728,7 +855,7 @@
                 <h3>Section ${s.id} &middot; $${s.price} each</h3>
                 <div class="seatgrid" style="grid-template-columns: 16px repeat(${s.cols}, 1fr)">${g}</div>
                 <div id="selc"></div>
-                <button id="gettix">Get tickets</button>
+                <button id="gettix" class="primary big">Get tickets</button>
             `;
 
             document.querySelector('#back').onclick = () => { S.run.view = null; drawMap(); }
@@ -797,7 +924,7 @@
 
                 <p id="f-terms"><label><input type="checkbox" id="terms"> I agree to the Terms of Use</label></p>
 
-                <button id="place">Place order</button>
+                <button id="place" class="primary big">Place order</button>
                 </div>
 
                 <div id="modal"></div>
@@ -846,7 +973,7 @@
                         <h3>Price updated</h3>
                         <p>Due to demand, these tickets are now <b>$${newPrice}</b> each (was $${o.price}).</p>
                         <button id="pcNo">Cancel</button>
-                        <button id="pcYes">Continue</button>
+                        <button id="pcYes" class="primary">Continue</button>
                     </div></div>
                     `;
 
@@ -938,15 +1065,28 @@
             app.innerHTML = `
             <div class="card">
                 <h1>Ticket Drop Trainer</h1>
-                <p>Flow:</p>
+                <p>Practice a big onsale until it's muscle memory.</p>
+
+            <p class="label">Flow</p>
+            <div class="seg">
                 <button class="mode ${S.settings.mode === 'map' ? 'on' : ''}" data-v="map">Seat map</button>
                 <button class="mode ${S.settings.mode === 'list' ? 'on' : ''}" data-v="list">Listings</button>
+            </div>
+
+            <p class="label">Difficulty</p>
+            <div class="seg">
                 <button class="diff ${S.settings.diff === 'arena' ? 'on' : ''}" data-v="arena">Arena</button>
                 <button class="diff ${S.settings.diff === 'stadium' ? 'on' : ''}" data-v="stadium">Stadium</button>
                 <button class="diff ${S.settings.diff === 'chaos' ? 'on' : ''}" data-v="chaos">Chaos</button>
+            </div>
+
+            <p class="label">Tickets</p>
+            <div class="seg">
                 <p>Tickets:</p>
                 ${[1, 2, 3, 4].map(n => `<button class="qty ${S.settings.qty === n ? 'on' : ''}" data-v="${n}">${n}</button>`).join('')}
-                <button id="start">Start practice drop</button>
+            </div>
+
+                <button id="start" class="primary big">Start practice drop</button>
             </div>
 
             ${historyHTML()}
@@ -980,7 +1120,7 @@
                 <p>${S.run.d.label} &middot; ${S.run.qty} tickets</p>
                 <p>Your presale code: <b>${S.run.code}</b> (memorize it!)</p>
                 <p>Card CVV: <b>${S.run.cvv}</b></p>
-                <div id="cd">${left}</div>
+                <div id="cd" class="countdown">${left}</div>
                 <button id="quit">Quit</button>
             </div>
             `;
@@ -1098,7 +1238,7 @@
                 <ul>${tips.map(t => `<li>${t}</li>`).join('')}</ul>
             </div>
 
-            <button id="play-again">Play again</button>
+            <button id="play-again" class="primary big">Play again</button>
             `;
 
             //2. Wire up the button, It only exists now, after the line above ran.
