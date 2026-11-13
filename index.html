@@ -272,6 +272,15 @@
             padding: 6px;
             margin: 0 10px 10px 4px;
         }
+
+        .lst.exp {
+            border-color: #8b6cff;
+        }
+
+        .lst .buy {
+            margin-top: 10px;
+            width: 100%;
+        }
     </style>
 </head>
 
@@ -341,7 +350,8 @@
             'Mistyped the presale code': 'Paste your code from your notes instead of typing it',
             'Skipped the ticket protection question': 'Decide on ticket protection before the sale so it takes one tap.',
             'Forgot to tick the terms box': "Look for the terms checkbox. It's the easiest field to miss.",
-            'Wrong or missing CVV': 'Know your CVV by heart, or keep it in your notes.'
+            'Wrong or missing CVV': 'Know your CVV by heart, or keep it in your notes.',
+            "Tapped a listing that can't sell your quantity": 'Set the quantity filter before you browse, so every listing you see actually works.',
         };
 
         const SYMS = ['*', '●', '▲', '◼︎', '❤︎', '◆'];
@@ -483,6 +493,7 @@
                 S.run.fq = 0;       // quantity filter (0 = any)
                 S.run.fs = 'lo';            // sort: lo / hi / best
                 S.run.nodes = new Map();
+                S.run.exp = null;
                 drawList();
             }
 
@@ -542,6 +553,15 @@
             });
 
             if (Math.random() < 0.45) S.run.listings.push(genListing());        // new tickets released sometimes
+
+            const e = S.run.listings.find(x => x.id === S.run.exp);
+            if (S.run.exp && !e) {
+                S.run.exp = null;
+                toast('The listing just sold. Pick another one!');
+            } else if (e && !canBuy(e, S.run.qty)) {
+                S.run.exp = null;
+                toast("Someone bought part of that listing, so it can't sell your quantity anymore.");
+            }
             renderList();
         }
 
@@ -592,7 +612,7 @@
             // 2. create of update rows, then put them in sorted order
             vis.forEach(lst => {
                 let node = S.run.nodes.get(lst.id);
-                if (!node || node.dataset.v !== String(lst.v)) {        // new listing, or it changed
+                if (!node || node.dataset.v !== String(lst.v) || node.dataset.exp !== String(S.run.exp === lst.id)) {        // new listing, or it changed
                     const fresh = makeNode(lst);
                     if (node) node.replaceWith(fresh);                  // swap the old row for the new one
                     S.run.nodes.set(lst.id, fresh);
@@ -603,10 +623,45 @@
         }
 
         function makeNode(lst) {
+            const qty = S.run.qty;
+            const open = S.run.exp === lst.id;              // is this the expanded one?
+
             const n = document.createElement('div');
-            n.className = 'lst';
-            n.dataset.v = lst.v;                                // remember which version this row shows
-            n.innerHTML = `<b>Sec ${lst.sec} ・ Row ${lst.row}</b> ・ ${lst.q} tickets${lst.q > 1 ? 's' : ''} ・ <b>$${lst.price}</b> each`;
+            n.className = 'lst' + (open ? ' exp' : '');
+            n.dataset.v = lst.v;                                       // remember which version this row shows
+            n.dataset.exp = String(open);                             // remember if it was drawn open
+            n.innerHTML = `
+            <b>Sec ${lst.sec} ・ Row ${lst.row}</b> ・ ${lst.q} tickets${lst.q > 1 ? 's' : ''} ・ <b>$${lst.price}</b> each
+            ${open ? `<button class="buy">Buy ${qty} for $${lst.price * qty}</button>` : ''}`;
+
+            // tap the row: open/close it
+            n.onclick = () => {
+                if (!S.run.unlocked) { toast('Enter your presale code first.'); return; }
+                if (!canBuy(lst, qty)) {                                               // this listing CAN'T sell your quantity
+                    S.run.mistakes.push("Tapped a listing that can't sell your quantity");
+                    toast(`This listing can't be split into ${qty}. Set the quantity filter first!`);
+                    return;
+                }
+                S.run.exp = open ? null : lst.id;           // toggle
+                renderList();
+            };
+
+            // tap Buy: snipe check, then checkout
+            if (open) {
+                n.querySelector('.buy').onclick = e => {
+                    e.stopPropagation();                        // don't also trigger the row's onclick
+                    if (snipeCheck()) {
+                        S.run.listings = S.run.listings.filter(x => x.id !== lst.id);
+                        S.run.exp = null;
+                        S.run.snipes = (S.run.snipes || 0) + 1;
+                        toast('Another fan bought that listing first, Next one, quick!');
+                        renderList();
+                        return;
+                    }
+                    S.run.order = { desc: `Section ${lst.sec} ・ Row ${lst.row}`, price: lst.price, qty };
+                    renderCheckout();                                              // got to checkout
+                };
+            }
             return n;
         }
 
