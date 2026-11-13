@@ -254,6 +254,24 @@
         .stat b {
             font-size: 19px;
         }
+
+        .lst {
+            background: #222533;
+            border: 1px solid #2e3243;
+            border-radius: 10px;
+            padding: 11px 12px;
+            margin: 6px 0;
+            cursor: pointer;
+        }
+
+        select {
+            background: #0f1016;
+            color: inherit;
+            border: 1px solid #2e3243;
+            border-radius: 8px;
+            padding: 6px;
+            margin: 0 10px 10px 4px;
+        }
     </style>
 </head>
 
@@ -263,7 +281,7 @@
         const app = document.querySelector('#app');
 
         const S = {
-            settings: { diff: 'stadium', qty: 2 },  // what you picked on setupl survives between runs
+            settings: { diff: 'stadium', qty: 2, mode: 'map' },  // what you picked on setupl survives between runs
             run: null                               // the current attempt; rebuilt from scratch each time
         };
         const DIFF = {
@@ -428,7 +446,6 @@
         function renderPick() {
             clearTimers();
             S.run.pickStart = performance.now();
-            S.run.secs = buildSections();
 
             app.innerHTML = `
                 <div class="card">
@@ -457,10 +474,18 @@
                 }
             };
 
-            S.run.view = null;
-            drawMap();
+            if (S.run.mode === 'map') {
+                S.run.secs = buildSections();
+                S.run.view = null;
+                drawMap();
+            } else {
+                S.run.listings = Array.from({ length: 30 }, genListing);        // 30 random listings
+                S.run.fq = 0;       // quantity filter (0 = any)
+                S.run.fs = 'lo';    // sort: lo / hi / best
+                drawList();
+            }
 
-            every(500, tickPick);
+            if (S.run.mode === 'map') every(500, tickPick);
 
 
         }
@@ -482,6 +507,65 @@
             for (let i = 201; i <= 212; i++) add(String(i), 'upper', ri(85, 140), 8, 12);
 
             return secs;
+        }
+
+        let LTD = 0;        // a counter so every listing gets a unique id
+
+        function genListing() {
+            const roll = Math.random();
+            const t = roll < 0.2 ? { tier: 'floor', p: [300, 460], secs: ['FLR A', 'FLR B', 'FLR C', 'FLR D'] }
+                : roll < 0.6 ? { tier: 'lower', p: [170, 290], secs: ['101', '102', '103', '104', '105', '106', '107', '108', '109', '110'] }
+                    : { tier: 'upper', p: [80, 155], secs: ['201', '202', '203', '204', '205', '206', '207', '208', '209', '210', '211', '212'] };
+            return {
+                id: ++LTD,                                           // 1, 2, 3...
+                tier: t.tier,
+                sec: t.secs[ri(0, t.secs.length - 1)],
+                row: ROWS[ri(0, 7)],
+                q: [1, 1, 2, 2, 2, 2, 3, 3, 4, 4, 4, 6, 8][ri(0, 12)],      // how many tickets in this listing
+                price: ri(t.p[0], t.p[1])
+            };
+        }
+
+        // can you buy n tickets from listing 1? (sites won't leave a single ticket behind)
+        function canBuy(l, n) {
+            return n <= l.q && l.q - n !== 1;
+        }
+
+        function drawList() {
+            document.querySelector('#pickArea').innerHTML = `
+            <label>Quantity
+                <select id="fq">
+                    <option value="0">Any</option>
+                    ${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `<option value="${n}">${n}</option>`).join('')}
+                </select>
+                </label>
+                <label>Sort
+                    <select id="fs">
+                        <option value="lo">Price: low to high</option>
+                        <option value="hi">Price: high to low</option>
+                        <option value="best">Best seats</option>
+                    </select>
+                </label>
+                <div id="list"></div>
+            `;
+
+            document.querySelector('#fq').onchange = e => { S.run.fq = +e.target.value; renderList(); };
+            document.querySelector('#fs').onchange = e => { S.run.fs = e.target.value; renderList(); };
+            renderList();
+        }
+
+        function renderList() {
+            const rank = { floor: 0, lower: 1, upper: 2 };
+            let vis = S.run.listings.filter(l => !S.run.fq || canBuy(l, S.run.fq));     // filter by quantity if set
+
+            if (S.run.fs === 'lo') vis.sort((a, b) => a.price - b.price);
+            else if (S.run.fs === 'hi') vis.sort((a, b) => b.price - a.price);          // most expensive first
+            else vis.sort((a, b) => rank[a.tier] - rank[b.tier]);
+
+            document.querySelector('#list').innerHTML = vis.map(l => `
+            <div class="lst" data-id="${l.id}">
+                <b>Sec ${l.sec} ・ Row ${l.row}</b> ・ ${l.q} tickets ・ <b>$${l.price}</b> each
+                </div>`).join('');
         }
 
         function drawMap() {
@@ -703,6 +787,7 @@
             S.run = {
                 d: DIFF[S.settings.diff],             // look up the difficulty object using the chosen setting
                 qty: S.settings.qty,                  // the chosen quantity
+                mode: S.settings.mode,                // the chosen ticket mode
                 mistakes: [],
                 code: 'TOUR' + ri(1000, 9999),         // e.g. TOUR4821
                 unlocked: false,
@@ -719,7 +804,9 @@
             app.innerHTML = `
             <div class="card">
                 <h1>Ticket Drop Trainer</h1>
-                <p>Practice a big onsale until it's muscle memory.</p>
+                <p>Flow:</p>
+                <button class="mode ${S.settings.mode === 'map' ? 'on' : ''}" data-v="map">Seat map</button>
+                <button class="mode ${S.settings.mode === 'list' ? 'on' : ''}" data-v="list">Listings</button>
                 <button class="diff ${S.settings.diff === 'arena' ? 'on' : ''}" data-v="arena">Arena</button>
                 <button class="diff ${S.settings.diff === 'stadium' ? 'on' : ''}" data-v="stadium">Stadium</button>
                 <button class="diff ${S.settings.diff === 'chaos' ? 'on' : ''}" data-v="chaos">Chaos</button>
@@ -732,6 +819,9 @@
             `;
 
             //2. Wire up the button, It only exists now, after the line above ran.
+            document.querySelectorAll('.mode').forEach(b => {
+                b.onclick = () => { S.settings.mode = b.dataset.v; renderSetup(); };
+            });
             document.querySelectorAll('.diff').forEach(b => {
                 b.onclick = () => { S.settings.diff = b.dataset.v; renderSetup(); };
             });
