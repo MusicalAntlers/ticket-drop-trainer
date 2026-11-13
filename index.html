@@ -294,9 +294,9 @@
             run: null                               // the current attempt; rebuilt from scratch each time
         };
         const DIFF = {
-            arena: { label: 'Arena', lobby: 8, qMin: 800, qMax: 4000 },
-            stadium: { label: 'Stadium', lobby: 8, qMin: 8000, qMax: 25000 },
-            chaos: { label: 'Chaos', lobby: 8, qMin: 30000, qMax: 90000 }
+            arena: { label: 'Arena', lobby: 8, qMin: 800, qMax: 4000, priceChange: 0 },
+            stadium: { label: 'Stadium', lobby: 8, qMin: 8000, qMax: 25000, priceChange: 0.15 },
+            chaos: { label: 'Chaos', lobby: 8, qMin: 30000, qMax: 90000, priceChange: 1 }
         };
 
         let timers = [];    // every active timer id goes in here
@@ -321,7 +321,7 @@
         function load(key, fallback) {
             try {
                 const v = localStorage.getItem(key);        //stored as text, or null if nothing saved yet
-                return v ? JSON.parse(v) : fallBack;        // turn the text back into an array/object
+                return v ? JSON.parse(v) : fallback;        // turn the text back into an array/object
             } catch (e) {
                 return fallback;                            // storage blocked or broken: just use the fallback
             }
@@ -453,46 +453,51 @@
             }
         }
 
-        function renderPick() {
+        function renderPick(resume = false) {
             clearTimers();
-            S.run.pickStart = performance.now();
+            if (!resume) S.run.pickStart = performance.now();       // keep the original clock when resuming
 
             app.innerHTML = `
                 <div class="card">
                     <h1>Pick tickets</h1>
                     <p>You need ${S.run.qty} ticket(s).</p>
+                    ${S.run.unlocked ? '' : `
                     <form id="unlock">
                         <input id="code" placeholder="Enter presale code" autocomplete="off">
                         <button>Unlock</button>
-                    </form>
-                    <div id="pickArea" class="locked"></div>
+                    </form>`}
+                    <div id="pickArea" class="${S.run.unlocked ? '' : 'locked'}"></div>
                 </div>
                 `;
 
-            document.querySelector('#unlock').onsubmit = e => {
-                e.preventDefault();                                             // stop the page from reloading
-                const typed = document.querySelector('#code').value.trim().toUpperCase();
-                if (typed === S.run.code) {
-                    S.run.unlocked = true;
-                    S.run.unlockMs = performance.now() - S.run.pickStart;       // how fast you unlocked
-                    document.querySelector('#unlock').remove();                 // hide the box
-                    document.querySelector('#pickArea').classList.remove('locked');
-                    toast('Unlocked!');
-                } else {
-                    S.run.mistakes.push('Mistyped the presale code');
-                    toast("That code wasn't recognized.");
-                }
-            };
+            if (!S.run.unlocked) {
+                document.querySelector('#unlock').onsubmit = e => {
+                    e.preventDefault();                                             // stop the page from reloading
+                    const typed = document.querySelector('#code').value.trim().toUpperCase();
+                    if (typed === S.run.code) {
+                        S.run.unlocked = true;
+                        S.run.unlockMs = performance.now() - S.run.pickStart;       // how fast you unlocked
+                        document.querySelector('#unlock').remove();                 // hide the box
+                        document.querySelector('#pickArea').classList.remove('locked');
+                        toast('Unlocked!');
+                    } else {
+                        S.run.mistakes.push('Mistyped the presale code');
+                        toast("That code wasn't recognized.");
+                    }
+                };
+            }
 
             if (S.run.mode === 'map') {
-                S.run.secs = buildSections();
+                if (!resume) S.run.secs = buildSections();       // same sections, same sold seats
                 S.run.view = null;
                 drawMap();
             } else {
-                S.run.listings = Array.from({ length: 30 }, genListing);        // 30 random listings
-                S.run.fq = 0;       // quantity filter (0 = any)
-                S.run.fs = 'lo';            // sort: lo / hi / best
-                S.run.nodes = new Map();
+                if (!resume) {
+                    S.run.listings = Array.from({ length: 30 }, genListing);        // 30 random listings
+                    S.run.fq = 0;       // quantity filter (0 = any)
+                    S.run.fs = 'lo';            // sort: lo / hi / best
+                }
+                S.run.nodes = new Map();                // always fresh: the old row elements were wiped with the screen
                 S.run.exp = null;
                 drawList();
             }
@@ -588,6 +593,9 @@
                 <div id="list"></div>
             `;
 
+            document.querySelector('#fq').value = S.run.fq;
+            document.querySelector('#fs').value = S.run.fs;
+
             document.querySelector('#fq').onchange = e => { S.run.fq = +e.target.value; renderList(); };
             document.querySelector('#fs').onchange = e => { S.run.fs = e.target.value; renderList(); };
             renderList();
@@ -631,7 +639,7 @@
             n.dataset.v = lst.v;                                       // remember which version this row shows
             n.dataset.exp = String(open);                             // remember if it was drawn open
             n.innerHTML = `
-            <b>Sec ${lst.sec} ・ Row ${lst.row}</b> ・ ${lst.q} tickets${lst.q > 1 ? 's' : ''} ・ <b>$${lst.price}</b> each
+            <b>Sec ${lst.sec} ・ Row ${lst.row}</b> ・ ${lst.q} ticket${lst.q > 1 ? 's' : ''} ・ <b>$${lst.price}</b> each
             ${open ? `<button class="buy">Buy ${qty} for $${lst.price * qty}</button>` : ''}`;
 
             // tap the row: open/close it
@@ -791,6 +799,8 @@
 
                 <button id="place">Place order</button>
                 </div>
+
+                <div id="modal"></div>
                 `;
 
             every(1000, () => {
@@ -825,6 +835,33 @@
                 }
 
                 if (bad) { toast('Fix the highlighted fields.'); return; }
+
+                if (Math.random() < S.run.d.priceChange && !S.run.priceseen) {
+                    S.run.priceseen = true;                                         // only surprise once per run
+                    const o = S.run.order;
+                    const newPrice = Math.round(o.price * (1.08 + Math.random() * 0.14));       // 8-22% higher
+
+                    document.querySelector('#modal').innerHTML = `
+                    <div class="overlay"><div class="dialog">
+                        <h3>Price updated</h3>
+                        <p>Due to demand, these tickets are now <b>$${newPrice}</b> each (was $${o.price}).</p>
+                        <button id="pcNo">Cancel</button>
+                        <button id="pcYes">Continue</button>
+                    </div></div>
+                    `;
+
+                    document.querySelector('#pcYes').onclick = () => {
+                        o.price = newPrice;                                    // accept the new price
+                        finish(true);
+                    };
+                    document.querySelector('#pcNo').onclick = () => {
+                        S.run.coStart = null;               // this checkout didn't count
+                        S.run.pickMs = null;
+                        toast('Back to tickets. Grab something in your budge, fast!');
+                        renderPick(true);
+                    };
+                    return;                                                     // wait for their choice
+                }
 
                 finish(true);
             };
@@ -1004,7 +1041,7 @@
             return `
             <div class="card">
                 <h3>Your practice history</h3>
-                <p>${h.length} runs ・ ${wins.length} got tickets${best != null ? ` ・ best ${(best / 1000).toFixed(10)}s` : ''}</p>
+                <p>${h.length} runs ・ ${wins.length} got tickets${best != null ? ` ・ best ${(best / 1000).toFixed(1)}s` : ''}</p>
                 ${h.slice(0, 8).map(x => `
                 <p>${new Date(x.ts).toLocaleDateString()} ・ ${x.diff} ・ <b>${x.ok ? x.grade : 'Missed'}</b> ${x.ok ? '・ ' + (x.score / 1000).toFixed(1) + 's' : ''}</p>
                 `).join('')}
@@ -1036,6 +1073,7 @@
                 <div class="grade">${r.ok ? r.grade : '✕'}</div>
                 <h3>${r.ok ? '🎉 You got tickets!' : 'Missed it this time'}</h3>
                 <p>${r.ok ? r.order.desc : r.reason}</p>
+                ${r.ok ? `<p>${r.order.qty} × $${r.order.price}</p>` : ''}
             </div>
 
             <div class="card">
