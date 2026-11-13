@@ -481,11 +481,12 @@
             } else {
                 S.run.listings = Array.from({ length: 30 }, genListing);        // 30 random listings
                 S.run.fq = 0;       // quantity filter (0 = any)
-                S.run.fs = 'lo';    // sort: lo / hi / best
+                S.run.fs = 'lo';            // sort: lo / hi / best
+                S.run.nodes = new Map();
                 drawList();
             }
 
-            if (S.run.mode === 'map') every(500, tickPick);
+            every(500, S.run.mode === 'map' ? tickPick : tickList);
 
 
         }
@@ -522,8 +523,26 @@
                 sec: t.secs[ri(0, t.secs.length - 1)],
                 row: ROWS[ri(0, 7)],
                 q: [1, 1, 2, 2, 2, 2, 3, 3, 4, 4, 4, 6, 8][ri(0, 12)],      // how many tickets in this listing
-                price: ri(t.p[0], t.p[1])
+                price: ri(t.p[0], t.p[1]),
+                v: 0
             };
+        }
+
+        function tickList() {
+            S.run.listings = S.run.listings.filter(lst => {
+                if (Math.random() < 0.04) {                     // 4% change per tick something happens to this listing
+                    if (lst.q > 2 && Math.random() < 0.5) {       // big listings sometimes just shrink...
+                        lst.q = ri(1, lst.q - 1);
+                        lst.v++;                                // changed, so its row needs redrawing
+                        return true;                            // keep it
+                    }
+                    return false;                               // ...otherwise it sells out: drop it
+                }
+                return true;                                    // nothing happened: keep it
+            });
+
+            if (Math.random() < 0.45) S.run.listings.push(genListing());        // new tickets released sometimes
+            renderList();
         }
 
         // can you buy n tickets from listing 1? (sites won't leave a single ticket behind)
@@ -562,10 +581,33 @@
             else if (S.run.fs === 'hi') vis.sort((a, b) => b.price - a.price);          // most expensive first
             else vis.sort((a, b) => rank[a.tier] - rank[b.tier]);
 
-            document.querySelector('#list').innerHTML = vis.map(l => `
-            <div class="lst" data-id="${l.id}">
-                <b>Sec ${l.sec} ・ Row ${l.row}</b> ・ ${l.q} tickets ・ <b>$${l.price}</b> each
-                </div>`).join('');
+            const list = document.querySelector('#list');
+            const visIds = new Set(vis.map(lst => lst.id));         // ids that should be on screen
+
+            // 1. remove rows that shouldn't be shown anymore (sold out or filtered away)
+            for (const [id, node] of S.run.nodes) {
+                if (!visIds.has(id)) { node.remove(); S.run.nodes.delete(id); }
+            }
+
+            // 2. create of update rows, then put them in sorted order
+            vis.forEach(lst => {
+                let node = S.run.nodes.get(lst.id);
+                if (!node || node.dataset.v !== String(lst.v)) {        // new listing, or it changed
+                    const fresh = makeNode(lst);
+                    if (node) node.replaceWith(fresh);                  // swap the old row for the new one
+                    S.run.nodes.set(lst.id, fresh);
+                    node = fresh;
+                }
+                list.appendChild(node);                                 // appending an existing node MOVES it
+            });
+        }
+
+        function makeNode(lst) {
+            const n = document.createElement('div');
+            n.className = 'lst';
+            n.dataset.v = lst.v;                                // remember which version this row shows
+            n.innerHTML = `<b>Sec ${lst.sec} ・ Row ${lst.row}</b> ・ ${lst.q} tickets${lst.q > 1 ? 's' : ''} ・ <b>$${lst.price}</b> each`;
+            return n;
         }
 
         function drawMap() {
