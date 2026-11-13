@@ -291,6 +291,21 @@
             timers = [];                            // ____ then reset timers to an empty array
         }
 
+        function load(key, fallback) {
+            try {
+                const v = localStorage.getItem(key);        //stored as text, or null if nothing saved yet
+                return v ? JSON.parse(v) : fallBack;        // turn the text back into an array/object
+            } catch (e) {
+                return fallback;                            // storage blocked or broken: just use the fallback
+            }
+        }
+
+        function store(key, value) {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));       // turn the array/object into text and save
+            } catch (e) { }                                              // if saving fails, the game still works
+        }
+
         function ri(a, b) {
             return Math.floor(a + Math.random() * (b - a + 1));     // random whole number from a to b
         }
@@ -678,6 +693,10 @@
 
             if (lostSel) toast('A seat you picked was just taken!');
             if (S.run.view) updateSeats(); else updateMap();      // update whichever screen you're on
+
+            // can anyone still buy your quantity anywhere?
+            const anyLeft = S.run.secs.some(s => Math.floor(s.avail) >= S.run.qty);
+            if (!anyLeft) finish(false, 'Sold out before you locked in seats.');
         }
 
         function startRun() {
@@ -708,6 +727,8 @@
                 ${[1, 2, 3, 4].map(n => `<button class="qty ${S.settings.qty === n ? 'on' : ''}" data-v="${n}">${n}</button>`).join('')}
                 <button id="start">Start practice drop</button>
             </div>
+
+            ${historyHTML()}
             `;
 
             //2. Wire up the button, It only exists now, after the line above ran.
@@ -718,6 +739,8 @@
                 b.onclick = () => { S.settings.qty = +b.dataset.v; renderSetup(); };        // 2. set qty 3. the + makes it a number
             });
             document.querySelector('#start').onclick = startRun;
+            const ch = document.querySelector('#clearHist');
+            if (ch) ch.onclick = () => { store('tdt-history', []); renderSetup(); };       // save an empty list
 
         }
 
@@ -771,7 +794,35 @@
                             : r.score < 80000 ? 'C'
                                 : 'D';
 
+            const hist = load('tdt-history', []);       // past runs, or an empty list the first time
+            hist.unshift({                              // unshift = add to the FRONT, so newest comes first
+                ts: Date.now(),                         // when (a timestamp)
+                diff: r.d.label,
+                ok,
+                grade: r.grade,
+                score: Math.round(r.score)
+            });
+            store('tdt-history', hist.slice(0, 50));     //keep only the most recent 50
+
             renderResults();
+        }
+
+        function historyHTML() {
+            const h = load('tdt-history', []);
+            if (!h.length) return '';                   // no runs yet: show nothing
+
+            const wins = h.filter(x => x.ok);
+            const best = wins.length ? Math.min(...wins.map(x => x.score)) : null;
+
+            return `
+            <div class="card">
+                <h3>Your practice history</h3>
+                <p>${h.length} runs ・ ${wins.length} got tickets${best != null ? ` ・ best ${(best / 1000).toFixed(10)}s` : ''}</p>
+                ${h.slice(0, 8).map(x => `
+                <p>${new Date(x.ts).toLocaleDateString()} ・ ${x.diff} ・ <b>${x.ok ? x.grade : 'Missed'}</b> ${x.ok ? '・ ' + (x.score / 1000).toFixed(1) + 's' : ''}</p>
+                `).join('')}
+                <button id="clearHist">Clear history</button>
+            </div>`;
         }
 
         function renderResults() {
