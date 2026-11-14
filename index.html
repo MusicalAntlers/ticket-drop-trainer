@@ -408,6 +408,7 @@
             text-align: center;
             margin: 10px 0;
         }
+
         .topbar {
             display: flex;
             align-items: center;
@@ -594,7 +595,7 @@
 
         function bindTopbar() {
             document.querySelector('#notesBtn').onclick = () => {
-                document.querySelector('#notes').classList.toggle(hidden);      //show/hide the sticky note
+                document.querySelector('#notes').classList.toggle('hidden');      //show/hide the sticky note
                 S.run.notesOpens = (S.run.notesOpens || 0) + 1;                 // count every peek
             };
 
@@ -620,6 +621,7 @@
             </div>
             <div id="modal"></div>
             `;
+            bindTopbar();
 
             const step = S.run.qOrig / (20 * 5);    // about 20 seconds at 5 ticks per second
 
@@ -655,6 +657,7 @@
                     <div id="pickArea" class="${S.run.unlocked ? '' : 'locked'}"></div>
                 </div>
                 `;
+            bindTopbar();
 
             if (!S.run.unlocked) {
                 document.querySelector('#unlock').onsubmit = e => {
@@ -988,6 +991,7 @@
 
                 <div id="modal"></div>
                 `;
+            bindTopbar();
 
             every(1000, () => {
                 left--;
