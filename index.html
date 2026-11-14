@@ -1261,6 +1261,7 @@
             // one tip per mistake type, no repeats
             const tips = Object.keys(groups).map(m => TIPS[m]).filter(Boolean);
             if (r.snipes) tips.push("Don't hold out for perfect seats. Grab the first good option.");
+            if (r.ok && (r.notesOpens || 0) > 2) tips.push('You opened your notes ${r.notesOpens} times, On drop day, have your code copied and ready to paste.');
             if (r.ok && !tips.length) tips.push('Clean run! Try a harder difficulty next.');       // a message for a clean run
 
             const stat = (label, value) => `<div class="stat"><span>${label}</span><b>${value}</b></div>`;
@@ -1286,8 +1287,6 @@
                     ${stat('Beaten by other fans', r.snipes || 0)}
                 </div>
             </div>
-
-             if (r.ok && (r.notesOpen || 0) > 2) tips.push('You opened your notes ${r.notesOpens} times, On drop day, have your code copied and ready to paste.');
 
             <div class="card">
                 <h3>Mistakes (${r.mistakes.length})</h3>
