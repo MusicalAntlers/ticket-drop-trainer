@@ -355,6 +355,7 @@
             width: 100%;
         }
 
+<<<<<<< Updated upstream
         @media (max-width: 480px) {
             #app {
                 padding: 10px;
@@ -407,6 +408,41 @@
             font-weight: 800;
             text-align: center;
             margin: 10px 0;
+=======
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .tb-title {
+            flex: 1;
+            font-weight: 700;
+        }
+
+        .tb-clock {
+            color: #b49cff;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .notes {
+            background: #fff9e0;
+            color: #2a2410;
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin: 8px 0;
+        }
+
+        .notes b {
+            font-size: 17px;
+            letter-spacing: .04em;
+        }
+
+        .hidden {
+            display: none;
+>>>>>>> Stashed changes
         }
     </style>
 </head>
@@ -545,14 +581,39 @@
             setTimeout(() => t.remove(), 2300);         // remove it after 2.3 seconds
         }
 
+        function topbar(title) {
+            return `
+            <div class="topbar">
+                <div class="tb-title">${title}</div>
+                <div class="tb-clock" id="clock"></div>
+                <button id="notesBtn">📝 Notes</button>
+            </div>
+            <div id="notes" class="notes hidden">
+                Presale code: <b>${S.run.code}</b><br>
+                Card CVV: <b>${S.run.cvv}</br>
+            </div>`;
+        }
+
+        function bindTopbar() {
+            document.querySelector('#notesBtn').onclick = () => {
+                document.querySelector('#notes').classList.toggle(hidden);      //show/hide the sticky note
+                S.run.notesOpens = (S.run.notesOpens || 0) + 1;                 // count every peek
+            };
+
+            every(100, () => {
+                const c = document.querySelector('#clock');
+                if (c && S.run.t0) c.textContent = '⏱️ ' + (performance.now() - S.run.t0 / 1000).toFixed(1) + 's';      // time since the sale started
+            });
+        }
+
         function renderQueue() {
             clearTimers();
             S.run.qOrig = ri(S.run.d.qMin, S.run.d.qMax);     // starting place in line: use the difficulty's qMin and qMax
             S.run.pos = S.run.qOrig;
 
             app.innerHTML = `
+            ${topbar('In line')}
             <div class="card">
-                <h1>In line</h1>
                 <div>People ahead of you</div>
                 <div>The sale is live. Don't refresh, or you'll lose your place in line.</div>
                 <div class="pos" id="pos"></div>
@@ -586,7 +647,7 @@
 
             app.innerHTML = `
                 <div class="card">
-                    <h1>Pick tickets</h1>
+                    ${topbar('Pick tickets')}
                     <p>You need ${S.run.qty} ticket(s).</p>
                     ${S.run.unlocked ? '' : `
                     <form id="unlock">
@@ -908,8 +969,8 @@
             let left = 60;                                      // seconds your tickets are held
 
             app.innerHTML = `
+            ${topbar('Checkout')}
             <div class="card">
-                <h1>Checkout</h1>
                 <div class="hold" id="hold">Tickets held for <b id="hl">${left}</b>s</div>
                 <p><b>${o.desc}</b><br>${o.qty} * $${o.price} • Total $${(o.qty * o.price * 1.27).toFixed(2)} with fees</p>
 
@@ -1118,7 +1179,7 @@
             <div class="card">
                 <h1>Waiting room</h1>
                 <p>${S.run.d.label} &middot; ${S.run.qty} tickets</p>
-                <p>Your presale code: <b>${S.run.code}</b> (memorize it!)</p>
+                <p>Your presale code: <b>${S.run.code}</b> (Memorize these!)</p>
                 <p>Card CVV: <b>${S.run.cvv}</b></p>
                 <div id="cd" class="countdown">${left}</div>
                 <button id="quit">Quit</button>
@@ -1227,6 +1288,8 @@
                     ${stat('Beaten by other fans', r.snipes || 0)}
                 </div>
             </div>
+
+             if (r.ok && (r.notesOpen || 0) > 2) tips.push('You opened your notes ${r.notesOpens} times, On drop day, have your code copied and ready to paste.');
 
             <div class="card">
                 <h3>Mistakes (${r.mistakes.length})</h3>
